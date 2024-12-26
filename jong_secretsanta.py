@@ -18,6 +18,9 @@ if "participants" not in st.session_state:
 if "assigned_pairs" not in st.session_state:
     st.session_state.assigned_pairs = {}
 
+if "completed_participants" not in st.session_state:
+    st.session_state.completed_participants = []
+
 # Admin Panel
 def admin_panel():
     st.header("Admin Panel - Manage Participants")
@@ -33,6 +36,7 @@ def admin_panel():
     if st.button("Reset Participant List"):
         st.session_state.participants = []
         st.session_state.assigned_pairs = {}
+        st.session_state.completed_participants = []
         st.success("Participant list reset!")
 
 # Participant UI
@@ -44,17 +48,28 @@ def participant_ui():
         st.warning("No participants available yet. Please wait for the admin to add names.")
         return
 
-    names = [p["name"] for p in st.session_state.participants if not p["assigned"]]
-    if not names:
+    # Filter names to exclude completed participants
+    available_names = [
+        p["name"] for p in st.session_state.participants if p["name"] not in st.session_state.completed_participants
+    ]
+
+    if not available_names:
         st.warning("All participants have already picked names!")
         return
 
-    selected_name = st.selectbox("Select Your Name", options=names)
+    selected_name = st.selectbox("Select Your Name", options=available_names)
     pick_button = st.button("Pick a Name to be Gifted")
 
     if pick_button:
+        # Ensure the participant can only pick once
+        if selected_name in st.session_state.completed_participants:
+            st.error("You have already picked a name!")
+            return
+
         # Randomly assign a name (ensure it's not the participant's own name)
-        remaining_names = [p["name"] for p in st.session_state.participants if p["name"] != selected_name and not p["assigned"]]
+        remaining_names = [
+            p["name"] for p in st.session_state.participants if p["name"] != selected_name and not p["assigned"]
+        ]
         if not remaining_names:
             st.warning("No names left to assign!")
             return
@@ -66,6 +81,9 @@ def participant_ui():
         for p in st.session_state.participants:
             if p["name"] == recipient_name:
                 p["assigned"] = True
+
+        # Add the participant to the completed list
+        st.session_state.completed_participants.append(selected_name)
 
         st.success(f"You’ve been assigned to gift: **{recipient_name}** 🎁")
         st.write("Please keep it a secret!")
